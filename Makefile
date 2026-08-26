@@ -141,6 +141,13 @@ UPROGS=\
 	$U/_nsh\
 	$U/_nsh_test\
 	$U/_cfs_test\
+	$U/_runbench\
+	$U/_bench_cpu\
+	$U/_bench_io\
+	$U/_bench_mixed\
+	$U/_bench_many\
+	$U/_bench_short\
+	$U/_bench_long\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)
