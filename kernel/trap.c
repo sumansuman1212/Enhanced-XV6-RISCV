@@ -9,6 +9,12 @@
 struct spinlock tickslock;
 uint ticks;
 
+// CFS time-slice: ticks before a CFS process is preempted.
+// Accessible to both usertrap() and kerneltrap().
+#ifdef CFS
+#define CFS_TIMESLICE 4
+#endif
+
 extern char trampoline[], uservec[], userret[];
 
 // in kernelvec.S, calls kerneltrap().
@@ -104,9 +110,27 @@ void usertrap(void)
         p->currticks++;
       }
     }
-     #ifndef MLFQ
-    yield();
-    
+    #ifdef CFS
+    // CFS time-slice: yield after CFS_TIMESLICE ticks.
+    // Also yield immediately if another runnable process has lower vruntime.
+    p->cfs_slice++;
+    if (p->cfs_slice >= CFS_TIMESLICE) {
+      yield();
+    } else {
+      // Preempt early if a more-deserving process exists
+      struct proc *q;
+      for (q = proc; q < &proc[NPROC]; q++) {
+        if (q != p) {
+          acquire(&q->lock);
+          int should_preempt = (q->state == RUNNABLE && q->vruntime < p->vruntime);
+          release(&q->lock);
+          if (should_preempt) {
+            yield();
+            break;
+          }
+        }
+      }
+    }
     #elif defined MLFQ
       p->currentticks2++;
       int val=0;
@@ -134,7 +158,9 @@ void usertrap(void)
             {if(mlfqueue[level][i]->state == RUNNABLE)val2=1;}}
         if(val2){yield();}
       }
-   #endif
+    #else
+    yield();
+    #endif
 
   }
 
@@ -209,9 +235,25 @@ void kerneltrap()
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING){
-     #ifndef MLFQ
-    yield();
-    
+    #ifdef CFS
+    struct proc *p = myproc();
+    p->cfs_slice++;
+    if (p->cfs_slice >= CFS_TIMESLICE) {
+      yield();
+    } else {
+      struct proc *q;
+      for (q = proc; q < &proc[NPROC]; q++) {
+        if (q != p) {
+          acquire(&q->lock);
+          int should_preempt = (q->state == RUNNABLE && q->vruntime < p->vruntime);
+          release(&q->lock);
+          if (should_preempt) {
+            yield();
+            break;
+          }
+        }
+      }
+    }
     #elif defined MLFQ
     struct proc *p = myproc();
        p->currentticks2++;
@@ -240,8 +282,9 @@ void kerneltrap()
             {if(mlfqueue[level][i]->state == RUNNABLE)val2=1;}}
         if(val2){yield();}
       }
-   #endif
-
+    #else
+    yield();
+    #endif
   }
 
 

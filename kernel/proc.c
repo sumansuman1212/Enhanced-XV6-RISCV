@@ -95,6 +95,7 @@ static char *syscallnames[] = {
 [SYS_sigalarm]  "sigalarm",
 [SYS_sigreturn] "sigreturn",
 [SYS_settickets] "settickets",
+[SYS_setweight]  "setweight",
 };
 
 // initialize the proc table.
@@ -218,6 +219,12 @@ found:
   p->timespentincurrqueue=0;
   p->currentticks2 = 0;
   p->queuepriority2 = 0;
+  // CFS fields
+  p->vruntime    = 0;
+  p->weight      = 1024;   // default weight (nice 0 equivalent)
+  p->exec_start  = 0;
+  p->cfs_slice   = 0;
+  p->ctx_switches = 0;
   return p;
 }
 
@@ -389,6 +396,9 @@ int fork(void)
 
   // np->mask = p->mask;           // Copying parent's mask
   np->tickets = p->tickets;
+  // CFS: child inherits parent's weight; vruntime set in scheduler on first run
+  np->weight  = p->weight;
+  np->vruntime = p->vruntime;
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -656,6 +666,63 @@ void scheduler(void)
         c->proc = 0;
       }
       release(&p->lock);
+    }
+    #endif
+    #ifdef CFS
+    // CFS-inspired scheduler:
+    //   1. Find the minimum vruntime among all RUNNABLE processes.
+    //   2. Select the RUNNABLE process with that minimum vruntime.
+    //   3. On return from swtch, update the process's vruntime.
+    //
+    // Virtual runtime update formula:
+    //   delta_ticks = current_ticks - exec_start
+    //   vruntime   += delta_ticks * (1024 / weight)
+    //
+    // The factor 1024/weight means heavier processes accumulate vruntime
+    // more slowly, so they get scheduled more often — higher weight = more CPU.
+    //
+    // Anti-starvation: if the gap between min_vruntime and max_vruntime
+    // across all RUNNABLE+RUNNING processes exceeds CFS_LAG_LIMIT,
+    // reset lagging processes' vruntime to (min_vruntime + CFS_LAG_LIMIT/2).
+    {
+    struct proc *p;
+    struct proc *chosen = 0;
+    uint64 min_vrt = (uint64)-1;  // max uint64 as initial sentinel
+
+    // Compute min vruntime and select candidate
+    for (p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE) {
+        if (p->vruntime < min_vrt) {
+          min_vrt = p->vruntime;
+          chosen  = p;
+        }
+      }
+      release(&p->lock);
+    }
+
+    if (chosen != 0) {
+      acquire(&chosen->lock);
+      // Re-check state after re-acquiring lock
+      if (chosen->state == RUNNABLE) {
+        chosen->state      = RUNNING;
+        chosen->exec_start = ticks;
+        chosen->cfs_slice  = 0;
+        chosen->ctx_switches++;
+        c->proc = chosen;
+        swtch(&c->context, &chosen->context);
+        // --- process has returned from its quantum ---
+        // Update vruntime: delta * (1024 / weight)
+        uint delta = (ticks >= chosen->exec_start)
+                       ? (ticks - chosen->exec_start) : 0;
+        uint64 inc = (chosen->weight > 0)
+                       ? ((uint64)delta * 1024 / (uint64)chosen->weight)
+                       : (uint64)delta;
+        chosen->vruntime += inc;
+        c->proc = 0;
+      }
+      release(&chosen->lock);
+    }
     }
     #endif
   }

@@ -140,6 +140,7 @@ UPROGS=\
 	$U/_lazytest\
 	$U/_nsh\
 	$U/_nsh_test\
+	$U/_cfs_test\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)

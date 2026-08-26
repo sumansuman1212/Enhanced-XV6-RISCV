@@ -137,6 +137,12 @@ struct proc
   int queuepriority2;
   int currentticks2;
 
+  // CFS-inspired scheduler fields
+  uint64 vruntime;       // virtual runtime: accumulated delta * (1024/weight)
+  int    weight;         // scheduling weight (default 1024; higher = more CPU)
+  uint   exec_start;     // tick when the current scheduling quantum began
+  int    cfs_slice;      // ticks used in current CFS time-slice
+  int    ctx_switches;   // total context switches (used by procstat)
 };
 extern struct proc *mlfqueue[4][NPROC];
 

@@ -158,3 +158,23 @@ sys_settickets(void)
   p->tickets = number;
   return 0;
 }
+
+// sys_setweight — set the CFS scheduling weight for the calling process.
+// weight is clamped to [1, 2048].
+// A higher weight gives the process more CPU time proportionally.
+// Default weight is 1024 (equal share with all default processes).
+// Weight 2048 → approximately 2x CPU share vs default.
+// Weight 512  → approximately 0.5x CPU share vs default.
+uint64
+sys_setweight(void)
+{
+  int w;
+  argint(0, &w);
+  if (w <= 0)
+    return -1;
+  if (w > 2048)
+    w = 2048;
+  struct proc *p = myproc();
+  p->weight = w;
+  return 0;
+}

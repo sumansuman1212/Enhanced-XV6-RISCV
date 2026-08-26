@@ -27,6 +27,7 @@ int getSysCount(int);
 int sigalarm(int ticks, void (*handler)());
 int sigreturn(void);
 int settickets(int);
+int setweight(int);
 
 // ulib.c
 int stat(const char*, struct stat*);
