@@ -96,6 +96,7 @@ static char *syscallnames[] = {
 [SYS_sigreturn] "sigreturn",
 [SYS_settickets] "settickets",
 [SYS_setweight]  "setweight",
+[SYS_memstat]    "memstat",
 };
 
 // initialize the proc table.
@@ -225,6 +226,9 @@ found:
   p->exec_start  = 0;
   p->cfs_slice   = 0;
   p->ctx_switches = 0;
+  // Memory instrumentation
+  p->p_faults     = 0;
+  p->p_cow_faults = 0;
   return p;
 }
 

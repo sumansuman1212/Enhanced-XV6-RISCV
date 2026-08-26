@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "memstats.h"
 
 uint64
 sys_exit(void)
@@ -176,5 +177,31 @@ sys_setweight(void)
     w = 2048;
   struct proc *p = myproc();
   p->weight = w;
+  return 0;
+}
+
+// sys_memstat — copy system-wide memory statistics to user space.
+//
+// Usage (user space):
+//   struct memstats s;
+//   memstat(&s);
+//
+// Returns 0 on success, -1 on error.
+// The struct memstats definition is in kernel/memstats.h; user programs
+// get an equivalent layout via user/memstat.h.
+uint64
+sys_memstat(void)
+{
+  uint64 uaddr;
+  argaddr(0, &uaddr);
+  if (uaddr == 0)
+    return -1;
+
+  struct memstats s;
+  get_memstats(&s);
+
+  struct proc *p = myproc();
+  if (copyout(p->pagetable, uaddr, (char *)&s, sizeof(s)) < 0)
+    return -1;
   return 0;
 }

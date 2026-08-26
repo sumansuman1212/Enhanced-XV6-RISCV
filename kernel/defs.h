@@ -67,6 +67,12 @@ void            cow_incref(void*);
 void*           cow_decref(void*);
 int             cow_handler(pagetable_t ,uint64);
 void            cow_init();
+// memory instrumentation (kalloc.c)
+struct memstats;
+void            memstats_init(void);
+void            get_memstats(struct memstats *);
+void            memstats_inc_fault(void);
+void            memstats_inc_cow(void);
 
 // log.c
 void            initlog(int, struct superblock*);

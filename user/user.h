@@ -28,6 +28,7 @@ int sigalarm(int ticks, void (*handler)());
 int sigreturn(void);
 int settickets(int);
 int setweight(int);
+int memstat(void *);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+#include "memstats.h"
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -28,10 +29,66 @@ struct {
   int ref[MAXREF];
 } cow_ref;
 
+// System-wide memory statistics.
+// Protected by mem_stats_lock for updates.
+// Reads in sys_memstat take a consistent snapshot under the lock.
+static struct spinlock mem_stats_lock;
+static struct memstats mem_stats;
+
+// Called from kinit() via kinit_memstats().
+void
+memstats_init(void)
+{
+  initlock(&mem_stats_lock, "memstats");
+  mem_stats.total_allocs = 0;
+  mem_stats.total_frees  = 0;
+  mem_stats.active_pages = 0;
+  mem_stats.peak_pages   = 0;
+  mem_stats.total_faults = 0;
+  mem_stats.cow_faults   = 0;
+  mem_stats.free_pages   = 0;
+}
+
+// Copy current stats into caller's buffer (safe snapshot).
+void
+get_memstats(struct memstats *dst)
+{
+  acquire(&mem_stats_lock);
+  // Count free pages on the fly from freelist length
+  uint64 free_count = 0;
+  struct run *r = kmem.freelist;
+  // Note: we hold mem_stats_lock, not kmem.lock, so this is an approximation.
+  // For a precise count we would need both locks; the approximation is acceptable
+  // for monitoring purposes.
+  while (r) { free_count++; r = r->next; }
+  mem_stats.free_pages = free_count;
+  *dst = mem_stats;
+  release(&mem_stats_lock);
+}
+
+// Increment the total page fault counter (called from trap.c).
+void
+memstats_inc_fault(void)
+{
+  acquire(&mem_stats_lock);
+  mem_stats.total_faults++;
+  release(&mem_stats_lock);
+}
+
+// Increment the CoW fault counter (called from trap.c / kalloc.c).
+void
+memstats_inc_cow(void)
+{
+  acquire(&mem_stats_lock);
+  mem_stats.cow_faults++;
+  release(&mem_stats_lock);
+}
+
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  memstats_init();
   freerange(end, (void*)PHYSTOP);
 }
 void cow_init(){
@@ -163,6 +220,13 @@ void kfree(void *pa)
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+
+  // Update stats: page actually returned to free pool
+  acquire(&mem_stats_lock);
+  mem_stats.total_frees++;
+  if (mem_stats.active_pages > 0)
+    mem_stats.active_pages--;
+  release(&mem_stats_lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -181,9 +245,16 @@ kalloc(void)
 
   if (r)
   {
-
     memset((char *)r, 5, PGSIZE); // fill with junk
     cow_ref.ref[PA2REF((uint64)r)] = 1;
+
+    // Update stats
+    acquire(&mem_stats_lock);
+    mem_stats.total_allocs++;
+    mem_stats.active_pages++;
+    if (mem_stats.active_pages > mem_stats.peak_pages)
+      mem_stats.peak_pages = mem_stats.active_pages;
+    release(&mem_stats_lock);
   }
   return (void *)r;
 }

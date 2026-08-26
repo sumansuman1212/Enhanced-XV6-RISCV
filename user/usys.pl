@@ -42,3 +42,4 @@ entry("sigalarm");
 entry("sigreturn");
 entry("settickets");
 entry("setweight");
+entry("memstat");

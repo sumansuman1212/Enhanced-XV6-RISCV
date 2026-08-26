@@ -143,6 +143,10 @@ struct proc
   uint   exec_start;     // tick when the current scheduling quantum began
   int    cfs_slice;      // ticks used in current CFS time-slice
   int    ctx_switches;   // total context switches (used by procstat)
+
+  // Memory instrumentation fields
+  uint64 p_faults;       // page faults attributed to this process
+  uint64 p_cow_faults;   // CoW page faults attributed to this process
 };
 extern struct proc *mlfqueue[4][NPROC];
 

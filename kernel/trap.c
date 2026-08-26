@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "memstats.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -77,8 +78,15 @@ void usertrap(void)
       exit(-1);
     uint64 va = PGROUNDDOWN(r_stval());
      // Going to the start of the page which cause Page Fault Exception
+    // Instrumentation: count all page faults, then CoW faults specifically
+    p->p_faults++;
+    memstats_inc_fault();
     if(cow_handler(p->pagetable,va) < 0){
       p->killed = 1;
+    } else {
+      // cow_handler succeeded — this was a CoW fault
+      p->p_cow_faults++;
+      memstats_inc_cow();
     }
   }
   else if ((which_dev = devintr()) != 0)

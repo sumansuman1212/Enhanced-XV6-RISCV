@@ -148,6 +148,8 @@ UPROGS=\
 	$U/_bench_many\
 	$U/_bench_short\
 	$U/_bench_long\
+	$U/_memstat\
+	$U/_memstat_test\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)

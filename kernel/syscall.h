@@ -26,3 +26,4 @@
 #define SYS_sigreturn 25
 #define SYS_settickets 26
 #define SYS_setweight  27
+#define SYS_memstat    28
