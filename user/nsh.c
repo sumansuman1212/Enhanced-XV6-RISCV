@@ -162,7 +162,7 @@ job_by_jid(int jid)
   return 0;
 }
 
-static struct job * __attribute__((unused))
+static struct job *
 job_by_pid(int pid)
 {
   for (int i = 0; i < MAXJOBS; i++)
@@ -171,17 +171,17 @@ job_by_pid(int pid)
   return 0;
 }
 
-// Reap finished background jobs (non-blocking poll via wait with 0 addr).
-// xv6 wait() blocks; we can't truly poll. Instead we mark completed jobs
-// when we explicitly wait for them in fg, or when the user runs 'jobs'.
-// We use a best-effort approach: attempt a non-blocking check by forking
-// a sentinel. Since xv6 has no WNOHANG, this is done via job state tracking.
+// Reap completed background children without blocking the interactive shell.
 static void
 jobs_reap(void)
 {
-  // We cannot do non-blocking wait in xv6 (no WNOHANG).
-  // Jobs are reaped when fg is called or when the shell explicitly waits.
-  // The job table is cleaned up in job_remove().
+  int status;
+  int pid;
+  while ((pid = waitpid(-1, &status, 1)) > 0) {
+    struct job *j = job_by_pid(pid);
+    if (j)
+      j->state = JOB_DONE;
+  }
 }
 
 static void
@@ -463,7 +463,7 @@ parseredirs(struct cmd *cmd, char **ps, char *es)
       cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREATE | O_TRUNC, 1);
       break;
     case '+':  // >>
-      cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREATE, 1);
+      cmd = redircmd(cmd, q, eq, O_RDWR | O_CREATE, 1);
       break;
     }
   }
@@ -665,8 +665,7 @@ builtin_jobs(void)
 }
 
 // ── fg ────────────────────────────────────────
-// Limitation: xv6 has no tcsetpgrp/SIGCONT. fg simply waits for the
-// job's PID to finish. If the job has already exited, wait() will fail.
+// Limitation: xv6 has no tcsetpgrp/SIGCONT. fg waits for a running job.
 
 static void
 builtin_fg(struct execcmd *cmd)
@@ -681,11 +680,15 @@ builtin_fg(struct execcmd *cmd)
     fprintf(2, "nsh: fg: job %d not found\n", jid);
     return;
   }
+  if (j->state == JOB_DONE) {
+    printf("nsh: fg: job %d has already completed\n", jid);
+    job_remove(jid);
+    return;
+  }
   printf("[%d] fg: %s\n", j->jid, j->cmd);
-  // Wait for the process to finish
   int status = 0;
-  int wpid = wait(&status);
-  if (wpid == j->pid || wpid >= 0) {
+  int wpid = waitpid(j->pid, &status, 0);
+  if (wpid == j->pid) {
     job_remove(jid);
   } else {
     fprintf(2, "nsh: fg: wait failed for job %d\n", jid);
@@ -707,6 +710,11 @@ builtin_bg(struct execcmd *cmd)
   struct job *j = job_by_jid(jid);
   if (!j) {
     fprintf(2, "nsh: fg: job %d not found\n", jid);
+    return;
+  }
+  if (j->state == JOB_DONE) {
+    printf("nsh: bg: job %d has already completed\n", jid);
+    job_remove(jid);
     return;
   }
   if (j->state == JOB_RUNNING) {
@@ -777,9 +785,15 @@ runcmd(struct cmd *cmd)
   case CMD_REDIR:
     rcmd = (struct redircmd *)cmd;
     close(rcmd->fd);
-    if (open(rcmd->file, rcmd->mode) < 0) {
+    int rfd = open(rcmd->file, rcmd->mode);
+    if (rfd < 0) {
       fprintf(2, "nsh: cannot open '%s'\n", rcmd->file);
       exit(1);
+    }
+    if ((rcmd->mode & O_CREATE) && (rcmd->mode & O_RDWR)) {
+      char dummy[128];
+      while (read(rfd, dummy, sizeof(dummy)) > 0)
+        ;
     }
     runcmd(rcmd->cmd);
     break;   // noreturn; unreachable
@@ -914,6 +928,7 @@ main(void)
 
   // Main REPL loop
   while (1) {
+    jobs_reap();
     print_prompt();
 
     int n = readline(buf, sizeof(buf));

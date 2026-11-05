@@ -37,6 +37,31 @@ sys_wait(void)
 }
 
 uint64
+sys_waitpid(void)
+{
+  int pid, nonblock;
+  uint64 status;
+  argint(0, &pid);
+  argaddr(1, &status);
+  argint(2, &nonblock);
+  if (pid == 0 || pid < -1 || (nonblock != 0 && nonblock != 1))
+    return -1;
+  return waitpid(pid, status, nonblock);
+}
+
+uint64
+sys_getprocs(void)
+{
+  uint64 uaddr;
+  int max;
+  argaddr(0, &uaddr);
+  argint(1, &max);
+  if (uaddr == 0 || max < 0 || max > NPROC)
+    return -1;
+  return getprocs(uaddr, max);
+}
+
+uint64
 sys_sbrk(void)
 {
   uint64 addr;
@@ -142,7 +167,11 @@ uint64
 sys_sigreturn(void)
 {
   struct proc *p = myproc();
+  if (p->initial_trapframe == 0)
+    return -1;
   memmove(p->trapframe, p->initial_trapframe, sizeof(struct trapframe));
+  kfree(p->initial_trapframe);
+  p->initial_trapframe = 0;
   p->interval = p->staticinterval;
   p->currticks = 0;
   return p->trapframe->a0;

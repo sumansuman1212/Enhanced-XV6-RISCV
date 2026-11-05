@@ -28,9 +28,9 @@ print_kb(uint64 pages)
 {
   uint64 kb = pages * PGSIZE / 1024;
   if (kb >= 1024)
-    printf("%llu MB", kb / 1024);
+    printf("%l MB", kb / 1024);
   else
-    printf("%llu KB", kb);
+    printf("%l KB", kb);
 }
 
 int
@@ -44,19 +44,19 @@ main(void)
   }
 
   printf("\n=== System Memory Statistics ===\n");
-  printf("  Total allocations : %llu\n",  s.total_allocs);
-  printf("  Total frees       : %llu\n",  s.total_frees);
-  printf("  Active pages      : %llu  (", s.active_pages);
+  printf("  Total allocations : %l\n",  s.total_allocs);
+  printf("  Total frees       : %l\n",  s.total_frees);
+  printf("  Active pages      : %l  (", s.active_pages);
   print_kb(s.active_pages);
   printf(")\n");
-  printf("  Peak pages        : %llu  (", s.peak_pages);
+  printf("  Peak pages        : %l  (", s.peak_pages);
   print_kb(s.peak_pages);
   printf(")\n");
-  printf("  Free pages        : %llu  (~", s.free_pages);
+  printf("  Free pages        : %l  (~", s.free_pages);
   print_kb(s.free_pages);
   printf(")\n");
-  printf("  Page faults       : %llu\n",  s.total_faults);
-  printf("  CoW faults        : %llu\n",  s.cow_faults);
+  printf("  Page faults       : %l\n",  s.total_faults);
+  printf("  CoW faults        : %l\n",  s.cow_faults);
   printf("\n");
 
   exit(0);

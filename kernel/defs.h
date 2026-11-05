@@ -111,6 +111,8 @@ void            sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(uint64);
+int             waitpid(int, uint64, int);
+int             getprocs(uint64, int);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);

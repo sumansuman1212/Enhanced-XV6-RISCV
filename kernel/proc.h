@@ -143,6 +143,7 @@ struct proc
   uint   exec_start;     // tick when the current scheduling quantum began
   int    cfs_slice;      // ticks used in current CFS time-slice
   int    ctx_switches;   // total context switches (used by procstat)
+  uint   first_run;      // first RUNNING tick; zero until scheduled
 
   // Memory instrumentation fields
   uint64 p_faults;       // page faults attributed to this process

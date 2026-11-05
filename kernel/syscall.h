@@ -27,3 +27,5 @@
 #define SYS_settickets 26
 #define SYS_setweight  27
 #define SYS_memstat    28
+#define SYS_waitpid    29
+#define SYS_getprocs   30

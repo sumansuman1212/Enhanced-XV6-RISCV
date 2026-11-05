@@ -53,17 +53,17 @@ memstats_init(void)
 void
 get_memstats(struct memstats *dst)
 {
+  // Stabilize the free list while counting it.  kalloc/kfree release
+  // kmem.lock before taking mem_stats_lock, so this lock order is safe.
+  acquire(&kmem.lock);
   acquire(&mem_stats_lock);
-  // Count free pages on the fly from freelist length
   uint64 free_count = 0;
   struct run *r = kmem.freelist;
-  // Note: we hold mem_stats_lock, not kmem.lock, so this is an approximation.
-  // For a precise count we would need both locks; the approximation is acceptable
-  // for monitoring purposes.
   while (r) { free_count++; r = r->next; }
   mem_stats.free_pages = free_count;
   *dst = mem_stats;
   release(&mem_stats_lock);
+  release(&kmem.lock);
 }
 
 // Increment the total page fault counter (called from trap.c).
@@ -92,11 +92,10 @@ kinit()
   freerange(end, (void*)PHYSTOP);
 }
 void cow_init(){
-  acquire(&cow_ref.lock);
+  initlock(&cow_ref.lock, "cowref");
   for(int i=0;i<PHYSTOP/PGSIZE;i++){
     cow_ref.ref[i]=1;
   }
-  release(&cow_ref.lock);
   return;
 }
 void cow_incref(void* pa){
@@ -158,22 +157,19 @@ int cow_handler(pagetable_t pagetable, uint64 va)
   }
  
   uint64 pa = PTE2PA(*pte);
-  // void *mem = cow_decref((void *)pa);
-  char*mem = kalloc();
+  char *mem = kalloc();
   if (mem == 0)
     return -1;
 
   memmove(mem, (char *)pa, PGSIZE);
-  
 
- 
-    
   uint64 flags = PTE_FLAGS(*pte);
-  flags |= PTE_W; // addding write flag
+  flags |= PTE_W; // adding write flag
   flags &= (~PTE_COW); // removing cow flag
 
-  uvmunmap(pagetable, PGROUNDDOWN(va), 1, 1);
-  if (mappages(pagetable, va,1 , (uint64)mem, flags) == -1)
+  va = PGROUNDDOWN(va);
+  uvmunmap(pagetable, va, 1, 1);
+  if (mappages(pagetable, va, PGSIZE, (uint64)mem, flags) == -1)
   {
     panic("Pagefhandler mappages");
   }
@@ -246,7 +242,9 @@ kalloc(void)
   if (r)
   {
     memset((char *)r, 5, PGSIZE); // fill with junk
+    acquire(&cow_ref.lock);
     cow_ref.ref[PA2REF((uint64)r)] = 1;
+    release(&cow_ref.lock);
 
     // Update stats
     acquire(&mem_stats_lock);

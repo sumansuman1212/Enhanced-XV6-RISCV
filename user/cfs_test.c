@@ -40,7 +40,7 @@ static void test_single_process(void) {
   int pid = fork();
   if (pid == 0) {
     // Burn ~50 ticks of CPU
-    for (volatile int i = 0; i < 10000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   if (waitx(0, &wtime, &rtime) < 0) {
@@ -60,12 +60,12 @@ static void test_two_equal(void) {
   int wtime1=0, rtime1=0, wtime2=0, rtime2=0;
   int pid1 = fork();
   if (pid1 == 0) {
-    for (volatile int i = 0; i < 20000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   int pid2 = fork();
   if (pid2 == 0) {
-    for (volatile int i = 0; i < 20000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   waitx(0, &wtime1, &rtime1);
@@ -101,13 +101,13 @@ static void test_unequal_weights(void) {
   int pid1 = fork();
   if (pid1 == 0) {
     setweight(512);  // heavier — gets more CPU
-    for (volatile int i = 0; i < 20000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   int pid2 = fork();
   if (pid2 == 0) {
     setweight(1);    // lightest — gets least CPU
-    for (volatile int i = 0; i < 20000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   waitx(0, &wtime1, &rtime1);
@@ -126,7 +126,7 @@ static void test_many_processes(void) {
   for (int i = 0; i < NMANY; i++) {
     int pid = fork();
     if (pid == 0) {
-      for (volatile int j = 0; j < 5000000; j++) {}
+      for (volatile long j = 0; j < 60000000L; j++) {}
       exit(0);
     }
   }
@@ -173,7 +173,7 @@ static void test_sleeping_wakeup(void) {
   int pid = fork();
   if (pid == 0) {
     sleep(3);
-    for (volatile int i = 0; i < 5000000; i++) {}
+    for (volatile long i = 0; i < 60000000L; i++) {}
     exit(0);
   }
   if (waitx(0, &wtime, &rtime) < 0) {

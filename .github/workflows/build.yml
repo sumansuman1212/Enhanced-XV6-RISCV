@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    name: Build xv6-RISC-V
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install RISC-V cross-compiler and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu build-essential qemu-system-misc
+
+      - name: Build Default (Round Robin)
+        run: |
+          make clean
+          make
+
+      - name: Build MLFQ Scheduler
+        run: |
+          make clean
+          make SCHEDULER=MLFQ
+
+      - name: Build CFS Scheduler
+        run: |
+          make clean
+          make SCHEDULER=CFS
+

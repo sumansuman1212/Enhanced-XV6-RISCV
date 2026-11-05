@@ -1,0 +1,28 @@
+# Build artifacts
+*.o
+*.d
+*.asm
+*.sym
+kernel/*.o
+kernel/*.d
+kernel/*.asm
+kernel/*.sym
+user/*.o
+user/*.d
+user/*.asm
+user/*.sym
+
+# Kernel and filesystem binaries
+kernel/kernel
+fs.img
+mkfs/mkfs
+.gdbinit
+user/initcode
+user/initcode.out
+user/usys.S
+user/_*
+
+# Editor and temporary files
+*.swp
+*~
+.DS_Store

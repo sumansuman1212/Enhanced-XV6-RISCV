@@ -43,3 +43,5 @@ entry("sigreturn");
 entry("settickets");
 entry("setweight");
 entry("memstat");
+entry("waitpid");
+entry("getprocs");

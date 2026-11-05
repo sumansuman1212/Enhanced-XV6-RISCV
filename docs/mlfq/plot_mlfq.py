@@ -1,9 +1,15 @@
-import pandas as pd
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
+# Resolve paths relative to this script's directory
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_FILE = SCRIPT_DIR / 'data.txt'
+OUTPUT_FILE = SCRIPT_DIR / 'mlfq_timeline_1.png'
 
 # Read the data from the file
-data = pd.read_csv('data.txt', delim_whitespace=True, header=None, names=['pid', 'ticks', 'queuepriority'])
+data = pd.read_csv(DATA_FILE, sep=r'\s+', header=None, names=['pid', 'ticks', 'queuepriority'])
 
 # Ensure the data is sorted by ticks
 data.sort_values(by='ticks', inplace=True)
@@ -33,5 +39,5 @@ plt.legend(title='Process ID', fontsize=12, title_fontsize='13', loc='best')
 
 # Adjust layout and save the plot
 plt.tight_layout()
-plt.savefig('mlfq_timeline_graph_connected_custom_yticks.png', dpi=300)
+plt.savefig(OUTPUT_FILE, dpi=300)
 plt.show()

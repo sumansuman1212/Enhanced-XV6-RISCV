@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "procinfo.h"
 
 struct cpu cpus[NCPU];
 
@@ -97,6 +98,8 @@ static char *syscallnames[] = {
 [SYS_settickets] "settickets",
 [SYS_setweight]  "setweight",
 [SYS_memstat]    "memstat",
+[SYS_waitpid]    "waitpid",
+[SYS_getprocs]   "getprocs",
 };
 
 // initialize the proc table.
@@ -226,6 +229,7 @@ found:
   p->exec_start  = 0;
   p->cfs_slice   = 0;
   p->ctx_switches = 0;
+  p->first_run = 0;
   // Memory instrumentation
   p->p_faults     = 0;
   p->p_cow_faults = 0;
@@ -238,6 +242,9 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  if (p->initial_trapframe)
+    kfree((void *)p->initial_trapframe);
+  p->initial_trapframe = 0;
   if (p->trapframe)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
@@ -555,6 +562,91 @@ int wait(uint64 addr)
   }
 }
 
+// Wait for a specific child (pid > 0), or any child (pid == -1).  With
+// nonblock set, return zero when matching children exist but none is a zombie.
+int
+waitpid(int pid, uint64 addr, int nonblock)
+{
+  struct proc *pp;
+  int havekids;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+  for (;;) {
+    havekids = 0;
+    for (pp = proc; pp < &proc[NPROC]; pp++) {
+      if (pp->parent != p || (pid > 0 && pp->pid != pid))
+        continue;
+      acquire(&pp->lock);
+      havekids = 1;
+      if (pp->state == ZOMBIE) {
+        int childpid = pp->pid;
+        if (addr != 0 && copyout(p->pagetable, addr, (char *)&pp->xstate,
+                                 sizeof(pp->xstate)) < 0) {
+          release(&pp->lock);
+          release(&wait_lock);
+          return -1;
+        }
+        freeproc(pp);
+        release(&pp->lock);
+        release(&wait_lock);
+        return childpid;
+      }
+      release(&pp->lock);
+    }
+    if (!havekids || killed(p)) {
+      release(&wait_lock);
+      return -1;
+    }
+    if (nonblock) {
+      release(&wait_lock);
+      return 0;
+    }
+    sleep(p, &wait_lock);
+  }
+}
+
+// Copy a bounded, lock-consistent process-table snapshot to user space.
+// Return the number of records copied, or -1 for an invalid destination.
+int
+getprocs(uint64 uaddr, int max)
+{
+  struct proc *p;
+  struct proc *caller = myproc();
+  int copied = 0;
+
+  if (max < 0)
+    return -1;
+  for (p = proc; p < &proc[NPROC] && copied < max; p++) {
+    struct procinfo info;
+    acquire(&p->lock);
+    if (p->state == UNUSED) {
+      release(&p->lock);
+      continue;
+    }
+    memset(&info, 0, sizeof(info));
+    info.pid = p->pid;
+    info.ppid = p->parent ? p->parent->pid : 0;
+    info.state = p->state;
+    safestrcpy(info.name, p->name, sizeof(info.name));
+    info.vm_bytes = p->sz;
+    info.mapped_pages = PGROUNDUP(p->sz) / PGSIZE;
+    info.cpu_ticks = p->rtime;
+    info.wait_ticks = ticks >= p->ctime + p->rtime ? ticks - p->ctime - p->rtime : 0;
+    info.response_ticks = p->first_run ? p->first_run - p->ctime : 0;
+    info.ctx_switches = p->ctx_switches;
+    info.vruntime = p->vruntime;
+    info.page_faults = p->p_faults;
+    info.cow_faults = p->p_cow_faults;
+    release(&p->lock);
+    if (copyout(caller->pagetable, uaddr + copied * sizeof(info),
+                (char *)&info, sizeof(info)) < 0)
+      return -1;
+    copied++;
+  }
+  return copied;
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -564,13 +656,10 @@ int wait(uint64 addr)
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
-  // struct proc *p;
   struct cpu *c = mycpu();
-  // printf("ke");
   c->proc = 0;
   for (;;)
   {
-    // printf("k");
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
     #ifdef LBS
@@ -614,6 +703,9 @@ void scheduler(void)
       acquire(&runnow->lock);
       if(runnow->state==RUNNABLE){
         runnow->state=RUNNING;
+        if (runnow->first_run == 0)
+          runnow->first_run = ticks;
+        runnow->ctx_switches++;
         c->proc=runnow;
         swtch(&c->context,&runnow->context);
         c->proc=0;
@@ -642,6 +734,9 @@ void scheduler(void)
       if(runnow-> state == RUNNABLE)
       {
         runnow->state = RUNNING;
+        if (runnow->first_run == 0)
+          runnow->first_run = ticks;
+        runnow->ctx_switches++;
         c->proc = runnow;
         swtch(&c->context, &runnow->context);
         c->proc = 0;
@@ -662,6 +757,9 @@ void scheduler(void)
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
+        if (p->first_run == 0)
+          p->first_run = ticks;
+        p->ctx_switches++;
         c->proc = p;
         swtch(&c->context, &p->context);
 
@@ -710,18 +808,21 @@ void scheduler(void)
       // Re-check state after re-acquiring lock
       if (chosen->state == RUNNABLE) {
         chosen->state      = RUNNING;
+        if (chosen->first_run == 0)
+          chosen->first_run = ticks;
         chosen->exec_start = ticks;
         chosen->cfs_slice  = 0;
         chosen->ctx_switches++;
         c->proc = chosen;
         swtch(&c->context, &chosen->context);
         // --- process has returned from its quantum ---
-        // Update vruntime: delta * (1024 / weight)
+        // Fixed point avoids a zero increment for weights above 1024.
         uint delta = (ticks >= chosen->exec_start)
                        ? (ticks - chosen->exec_start) : 0;
+        uint eff_delta = (delta > 0) ? delta : 1;
         uint64 inc = (chosen->weight > 0)
-                       ? ((uint64)delta * 1024 / (uint64)chosen->weight)
-                       : (uint64)delta;
+                       ? ((uint64)eff_delta * 1024 * 1024 / (uint64)chosen->weight)
+                       : (uint64)eff_delta * 1024;
         chosen->vruntime += inc;
         c->proc = 0;
       }

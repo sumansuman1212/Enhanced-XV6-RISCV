@@ -108,6 +108,8 @@ extern uint64 sys_sigreturn(void);
 extern uint64 sys_settickets(void);
 extern uint64 sys_setweight(void);
 extern uint64 sys_memstat(void);
+extern uint64 sys_waitpid(void);
+extern uint64 sys_getprocs(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -140,6 +142,8 @@ static uint64 (*syscalls[])(void) = {
 [SYS_settickets] sys_settickets,
 [SYS_setweight]  sys_setweight,
 [SYS_memstat]    sys_memstat,
+[SYS_waitpid]    sys_waitpid,
+[SYS_getprocs]   sys_getprocs,
 };
 
 void

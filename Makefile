@@ -150,6 +150,7 @@ UPROGS=\
 	$U/_bench_long\
 	$U/_memstat\
 	$U/_memstat_test\
+	$U/_procstat\
 
 
 fs.img: mkfs/mkfs README $(UPROGS)
@@ -189,4 +190,3 @@ qemu: $K/kernel fs.img
 qemu-gdb: $K/kernel .gdbinit fs.img
 	@echo "*** Now run 'gdb' in another window." 1>&2
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-

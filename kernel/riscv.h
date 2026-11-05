@@ -343,7 +343,9 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // user can access
-#define PTE_COW (1L << 5) // copy-on-write
+// Bits 8 and 9 are reserved for supervisor software (RSW).  Bit 5 is the
+// architectural Global bit, so it must not be used for copy-on-write state.
+#define PTE_COW (1L << 8) // copy-on-write (RSW[0])
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)
