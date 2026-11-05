@@ -13,6 +13,11 @@ A modular educational extension of the MIT xv6-RISC-V Unix operating system. Thi
 ![MLFQ Process Queue Timeline](docs/mlfq/mlfq_timeline_1.png)
 *Figure 1: Multi-Level Feedback Queue (MLFQ) process queue progression over timer ticks, illustrating dynamic priority demotion and periodic priority boosting.*
 
+<br>
+
+![Scheduler Benchmark Comparison](benchmarks/results/comparison.png)
+*Figure 2: Empirical benchmark comparing Turnaround Time and Waiting Time across Round Robin, LBS, MLFQ, and CFS across 6 standardized workloads.*
+
 ---
 
 ## Table of Contents

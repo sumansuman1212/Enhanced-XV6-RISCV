@@ -1,0 +1,67 @@
+========================================================================
+  Enhanced-XV6 Scheduler Benchmark Results
+========================================================================
+
+  All values in xv6 timer ticks (1 tick ≈ 10ms at default QEMU rate).
+  Std-dev requires ≥2 samples; shown as 0.0 with <2 samples.
+
+── Workload: cpu_bound ─────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR          1         6.0       0.0       6.0        0.0       0.0        6.0
+  LBS         1         5.0       0.0       5.0        1.0       0.0        6.0
+  MLFQ        1         2.0       0.0       2.0        1.0       0.0        3.0
+  CFS         1         6.0       0.0       6.0        0.0       0.0        6.0
+
+── Workload: io_bound ──────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR          1         0.0       0.0       0.0       40.0       0.0       40.0
+  LBS         1         0.0       0.0       0.0       40.0       0.0       40.0
+  MLFQ        1         0.0       0.0       0.0       40.0       0.0       40.0
+  CFS         1         0.0       0.0       0.0       40.0       0.0       40.0
+
+── Workload: mixed ─────────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR          1         4.0       0.0       4.0       12.0       0.0       16.0
+  LBS         1         4.0       0.0       4.0       13.0       0.0       17.0
+  MLFQ        1         0.0       0.0       0.0       12.0       0.0       12.0
+  CFS         1         3.0       0.0       3.0       12.0       0.0       15.0
+
+── Workload: many_procs ────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR          8         0.5       0.5       0.5        0.4       0.5        0.9
+  LBS         8         0.6       0.5       1.0        0.8       0.5        1.4
+  MLFQ        8         0.2       0.5       0.0        1.2       0.9        1.5
+  CFS         8         0.5       0.5       0.5        0.4       0.5        0.9
+
+── Workload: short_jobs ────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR         12         0.1       0.3       0.0        0.0       0.0        0.1
+  LBS        12         0.1       0.3       0.0        0.0       0.0        0.1
+  MLFQ       12         0.0       0.0       0.0        0.0       0.0        0.0
+  CFS        12         0.0       0.0       0.0        0.0       0.0        0.0
+
+── Workload: long_jobs ─────────────────────────────────────────
+  Scheduler    N  rtime_mean rtime_std rtime_med wtime_mean wtime_std turnaround
+  --------------------------------------------------------------------
+  RR          2        12.5       0.7      12.5        0.0       0.0       12.5
+  LBS         2        14.5       0.7      14.5        2.5       0.7       17.0
+  MLFQ        2         8.0       0.0       8.0        6.5       2.1       14.5
+  CFS         2        19.0       0.0      19.0        0.0       0.0       19.0
+
+── Overall Average Turnaround (across all workloads) ───────────────────
+  Scheduler avg_turnaround  avg_rtime  avg_wtime
+  --------------------------------------------
+  RR                 12.6        3.8        8.7
+  LBS                13.6        4.0        9.5
+  MLFQ               11.8        1.7       10.1
+  CFS                13.5        4.8        8.7
+
+NOTE: Numbers are averages of averages (unweighted across workloads).
+      See comparison.csv for raw per-(scheduler,workload) data.
+
+METHODOLOGY: See benchmarks/METHODOLOGY.md

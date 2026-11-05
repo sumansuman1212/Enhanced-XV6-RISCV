@@ -1,2 +1,26 @@
 scheduler,workload,run,pid,rtime,wtime,turnaround
-# no data captured - check QEMU output manually
+CFS,cpu_bound,0,29,6,0,6
+CFS,io_bound,0,30,0,40,40
+CFS,mixed,0,31,3,12,15
+CFS,many_procs,0,32,0,0,0
+CFS,many_procs,0,33,0,0,0
+CFS,many_procs,0,34,1,0,1
+CFS,many_procs,0,35,1,0,1
+CFS,many_procs,0,36,1,0,1
+CFS,many_procs,0,38,0,1,1
+CFS,many_procs,0,39,0,1,1
+CFS,many_procs,0,37,1,1,2
+CFS,short_jobs,0,40,0,0,0
+CFS,short_jobs,0,41,0,0,0
+CFS,short_jobs,0,42,0,0,0
+CFS,short_jobs,0,43,0,0,0
+CFS,short_jobs,0,44,0,0,0
+CFS,short_jobs,0,45,0,0,0
+CFS,short_jobs,0,46,0,0,0
+CFS,short_jobs,0,47,0,0,0
+CFS,short_jobs,0,48,0,0,0
+CFS,short_jobs,0,49,0,0,0
+CFS,short_jobs,0,50,0,0,0
+CFS,short_jobs,0,51,0,0,0
+CFS,long_jobs,0,53,19,0,19
+CFS,long_jobs,0,52,19,0,19
