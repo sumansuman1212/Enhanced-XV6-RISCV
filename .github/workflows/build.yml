@@ -24,17 +24,14 @@ jobs:
         run: |
           make clean
           make
-          make fs.img
 
       - name: Build MLFQ Scheduler
         run: |
           make clean
           make SCHEDULER=MLFQ
-          make fs.img
 
       - name: Build CFS Scheduler
         run: |
           make clean
           make SCHEDULER=CFS
-          make fs.img
 
